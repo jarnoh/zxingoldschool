@@ -81,7 +81,7 @@ public final class StringsResourceTranslator {
       " limitations under the License.\n" +
       " -->\n";
 
-  private static final Map<String,String> LANGUAGE_CODE_MASSAGINGS = new HashMap<>(3);
+  private static final Map<String,String> LANGUAGE_CODE_MASSAGINGS = new HashMap<String,String>(3);
   static {
     LANGUAGE_CODE_MASSAGINGS.put("zh-rCN", "zh-cn");
     LANGUAGE_CODE_MASSAGINGS.put("zh-rTW", "zh-tw");
@@ -102,10 +102,14 @@ public final class StringsResourceTranslator {
             VALUES_DIR_PATTERN.matcher(entry.getFileName().toString()).matches();
       }
     };
-    try (DirectoryStream<Path> dirs = Files.newDirectoryStream(resDir, filter)) {
+      DirectoryStream<Path> dirs = Files.newDirectoryStream(resDir, filter);
+    try {
       for (Path dir : dirs) {
         translate(stringsFile, dir.resolve("strings.xml"), forceRetranslation);
       }
+    }
+    finally {
+        dirs.close();
     }
   }
 
@@ -130,7 +134,8 @@ public final class StringsResourceTranslator {
     Path resultTempFile = Files.createTempFile(null, null);
 
     boolean anyChange = false;
-    try (Writer out = Files.newBufferedWriter(resultTempFile, StandardCharsets.UTF_8)) {
+      Writer out = Files.newBufferedWriter(resultTempFile, StandardCharsets.UTF_8);
+    try {
       out.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
       out.write(APACHE_2_LICENSE);
       out.write("<resources>\n");
@@ -159,6 +164,9 @@ public final class StringsResourceTranslator {
 
       out.write("</resources>\n");
       out.flush();
+    }
+    finally {
+        out.close();
     }
 
     if (anyChange) {
@@ -206,19 +214,23 @@ public final class StringsResourceTranslator {
     URLConnection connection = translateURI.toURL().openConnection();
     connection.connect();
     StringBuilder translateResult = new StringBuilder(200);
-    try (BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
+      BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8));
+    try {
       char[] buffer = new char[8192];
       int charsRead;
       while ((charsRead = in.read(buffer)) > 0) {
         translateResult.append(buffer, 0, charsRead);
       }
     }
+    finally {
+        in.close();
+    }
     return translateResult;
   }
 
   private static Map<String,String> readLines(Path file) throws IOException {
     if (Files.exists(file)) {
-      Map<String,String> entries = new TreeMap<>();
+      Map<String,String> entries = new TreeMap<String,String>();
       for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
         Matcher m = ENTRY_PATTERN.matcher(line);
         if (m.find()) {
